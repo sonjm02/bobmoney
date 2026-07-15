@@ -1,562 +1,247 @@
 (() => {
   'use strict';
 
-  const STORAGE_KEYS = {
-    entries: 'bobmoney.entries.v1',
-    settings: 'bobmoney.settings.v1'
+  const ENTRY_KEY = 'bobmoney.entries.v1';
+  const SETTINGS_KEY = 'bobmoney.settings.v1';
+  const CATEGORIES = {
+    '식사': '🍚',
+    '배달·외식': '🥡',
+    '카페·간식': '☕',
+    '기타': '➕'
+  };
+  const $ = (selector) => document.querySelector(selector);
+  const el = {
+    monthPicker: $('#monthPicker'), previousMonthButton: $('#previousMonthButton'), nextMonthButton: $('#nextMonthButton'),
+    monthSpent: $('#monthSpent'), monthlyBudget: $('#monthlyBudget'), monthRemaining: $('#monthRemaining'),
+    monthProgress: $('#monthProgress'), progressTrack: $('.progress-track'), monthProgressCaption: $('#monthProgressCaption'),
+    dailyAverage: $('#dailyAverage'), dailyAllowance: $('#dailyAllowance'), entryCount: $('#entryCount'),
+    lastWeekSpent: $('#lastWeekSpent'), lastWeekGuide: $('#lastWeekGuide'), thisWeekSpent: $('#thisWeekSpent'),
+    thisWeekGuide: $('#thisWeekGuide'), weeklyStatus: $('#weeklyStatus'), weeklyFeedbackMessage: $('#weeklyFeedbackMessage'),
+    weeklyBars: $('#weeklyBars'), expenseForm: $('#expenseForm'), editingId: $('#editingId'), expenseDate: $('#expenseDate'),
+    expenseAmount: $('#expenseAmount'), submitExpenseButton: $('#submitExpenseButton'), cancelEditButton: $('#cancelEditButton'),
+    categoryFilter: $('#categoryFilter'), categorySummary: $('#categorySummary'), recordList: $('#recordList'), emptyState: $('#emptyState'),
+    settingsDialog: $('#settingsDialog'), settingsForm: $('#settingsForm'), openSettingsButton: $('#openSettingsButton'),
+    closeSettingsButton: $('#closeSettingsButton'), editBudgetButton: $('#editBudgetButton'), budgetInput: $('#budgetInput'),
+    exportButton: $('#exportButton'), importInput: $('#importInput'), clearDataButton: $('#clearDataButton'), toast: $('#toast')
   };
 
-  const DEFAULT_SETTINGS = { monthlyBudget: 600000 };
-  const CATEGORY_META = {
-    '식사': { icon: '🍚' },
-    '배달·외식': { icon: '🥡' },
-    '카페·간식': { icon: '☕' },
-    '기타': { icon: '➕' }
+  const load = (key, fallback) => {
+    try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
+    catch { return fallback; }
   };
+  let entries = load(ENTRY_KEY, []);
+  let settings = { monthlyBudget: 600000, ...load(SETTINGS_KEY, {}) };
+  let selectedMonth = monthValue(new Date());
+  let toastTimer;
 
-  const elements = {
-    monthPicker: document.querySelector('#monthPicker'),
-    previousMonthButton: document.querySelector('#previousMonthButton'),
-    nextMonthButton: document.querySelector('#nextMonthButton'),
-    monthSpent: document.querySelector('#monthSpent'),
-    monthlyBudget: document.querySelector('#monthlyBudget'),
-    monthRemaining: document.querySelector('#monthRemaining'),
-    monthProgress: document.querySelector('#monthProgress'),
-    progressTrack: document.querySelector('.progress-track'),
-    monthProgressCaption: document.querySelector('#monthProgressCaption'),
-    dailyAverage: document.querySelector('#dailyAverage'),
-    dailyAllowance: document.querySelector('#dailyAllowance'),
-    entryCount: document.querySelector('#entryCount'),
-    lastWeekSpent: document.querySelector('#lastWeekSpent'),
-    lastWeekGuide: document.querySelector('#lastWeekGuide'),
-    thisWeekSpent: document.querySelector('#thisWeekSpent'),
-    thisWeekGuide: document.querySelector('#thisWeekGuide'),
-    weeklyStatus: document.querySelector('#weeklyStatus'),
-    weeklyFeedbackMessage: document.querySelector('#weeklyFeedbackMessage'),
-    weeklyBars: document.querySelector('#weeklyBars'),
-    expenseForm: document.querySelector('#expenseForm'),
-    editingId: document.querySelector('#editingId'),
-    expenseDate: document.querySelector('#expenseDate'),
-    expenseAmount: document.querySelector('#expenseAmount'),
-    expenseMemo: document.querySelector('#expenseMemo'),
-    submitExpenseButton: document.querySelector('#submitExpenseButton'),
-    cancelEditButton: document.querySelector('#cancelEditButton'),
-    categoryFilter: document.querySelector('#categoryFilter'),
-    categorySummary: document.querySelector('#categorySummary'),
-    recordList: document.querySelector('#recordList'),
-    emptyState: document.querySelector('#emptyState'),
-    settingsDialog: document.querySelector('#settingsDialog'),
-    settingsForm: document.querySelector('#settingsForm'),
-    openSettingsButton: document.querySelector('#openSettingsButton'),
-    closeSettingsButton: document.querySelector('#closeSettingsButton'),
-    editBudgetButton: document.querySelector('#editBudgetButton'),
-    budgetInput: document.querySelector('#budgetInput'),
-    saveSettingsButton: document.querySelector('#saveSettingsButton'),
-    exportButton: document.querySelector('#exportButton'),
-    importInput: document.querySelector('#importInput'),
-    clearDataButton: document.querySelector('#clearDataButton'),
-    toast: document.querySelector('#toast')
-  };
-
-  let entries = loadJson(STORAGE_KEYS.entries, []);
-  let settings = { ...DEFAULT_SETTINGS, ...loadJson(STORAGE_KEYS.settings, {}) };
-  let selectedMonth = toMonthValue(new Date());
-  let toastTimer = null;
-
-  function loadJson(key, fallback) {
-    try {
-      const value = localStorage.getItem(key);
-      return value ? JSON.parse(value) : fallback;
-    } catch (error) {
-      console.warn(`저장된 ${key} 데이터를 읽지 못했습니다.`, error);
-      return fallback;
-    }
+  function save() {
+    localStorage.setItem(ENTRY_KEY, JSON.stringify(entries));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   }
-
-  function saveState() {
-    localStorage.setItem(STORAGE_KEYS.entries, JSON.stringify(entries));
-    localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(settings));
+  function won(value) { return `${Math.round(Number(value) || 0).toLocaleString('ko-KR')}원`; }
+  function dateValue(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   }
-
-  function formatWon(value) {
-    return `${Math.round(Number(value) || 0).toLocaleString('ko-KR')}원`;
-  }
-
-  function toDateValue(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
-  function toMonthValue(date) {
-    return toDateValue(date).slice(0, 7);
-  }
-
-  function parseLocalDate(value) {
+  function monthValue(date) { return dateValue(date).slice(0, 7); }
+  function parseDate(value) {
     const [year, month, day] = value.split('-').map(Number);
     return new Date(year, month - 1, day);
   }
-
-  function dateKey(date) {
-    return toDateValue(date);
-  }
-
-  function startOfWeek(date) {
-    const result = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const mondayOffset = (result.getDay() + 6) % 7;
-    result.setDate(result.getDate() - mondayOffset);
-    return result;
-  }
-
-  function endOfWeek(date) {
-    const result = startOfWeek(date);
-    result.setDate(result.getDate() + 6);
-    return result;
-  }
-
   function addDays(date, days) {
     const result = new Date(date);
     result.setDate(result.getDate() + days);
     return result;
   }
-
-  function getMonthBounds(monthValue) {
-    const [year, month] = monthValue.split('-').map(Number);
+  function weekStart(date) {
+    const result = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    result.setDate(result.getDate() - ((result.getDay() + 6) % 7));
+    return result;
+  }
+  function weekEnd(date) { return addDays(weekStart(date), 6); }
+  function monthBounds(value) {
+    const [year, month] = value.split('-').map(Number);
+    return { start: new Date(year, month - 1, 1), end: new Date(year, month, 0), days: new Date(year, month, 0).getDate() };
+  }
+  function monthEntries() { return entries.filter((entry) => entry.date.startsWith(selectedMonth)); }
+  function sum(list) { return list.reduce((total, entry) => total + Number(entry.amount || 0), 0); }
+  function between(start, end) {
+    const from = dateValue(start), to = dateValue(end);
+    return entries.filter((entry) => entry.date >= from && entry.date <= to && entry.date.startsWith(selectedMonth));
+  }
+  function overlapDays(aStart, aEnd, bStart, bEnd) {
+    const start = aStart > bStart ? aStart : bStart;
+    const end = aEnd < bEnd ? aEnd : bEnd;
+    return start > end ? 0 : Math.floor((end - start) / 86400000) + 1;
+  }
+  function guide(start, bounds) {
+    return settings.monthlyBudget * overlapDays(start, weekEnd(start), bounds.start, bounds.end) / bounds.days;
+  }
+  function referenceDate() {
+    const today = new Date();
+    return monthValue(today) === selectedMonth ? today : monthBounds(selectedMonth).end;
+  }
+  function normalize(entry) {
     return {
-      start: new Date(year, month - 1, 1),
-      end: new Date(year, month, 0),
-      days: new Date(year, month, 0).getDate()
+      id: String(entry.id), date: entry.date, amount: Math.round(Number(entry.amount)),
+      category: CATEGORIES[entry.category] ? entry.category : '기타', createdAt: entry.createdAt || new Date().toISOString()
     };
   }
-
-  function getEntriesForMonth(monthValue) {
-    return entries.filter((entry) => entry.date.startsWith(monthValue));
-  }
-
-  function sumEntries(list) {
-    return list.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-  }
-
-  function entriesBetween(start, end) {
-    const startKey = dateKey(start);
-    const endKey = dateKey(end);
-    return entries.filter((entry) => entry.date >= startKey && entry.date <= endKey);
-  }
-
-  function overlapDays(startA, endA, startB, endB) {
-    const start = startA > startB ? startA : startB;
-    const end = endA < endB ? endA : endB;
-    if (start > end) return 0;
-    return Math.floor((end - start) / 86400000) + 1;
-  }
-
-  function weekGuide(weekStart, monthBounds) {
-    const daysInMonthWeek = overlapDays(weekStart, endOfWeek(weekStart), monthBounds.start, monthBounds.end);
-    return settings.monthlyBudget * (daysInMonthWeek / monthBounds.days);
-  }
-
-  function getReferenceDate() {
-    const now = new Date();
-    if (toMonthValue(now) === selectedMonth) return now;
-    const { end } = getMonthBounds(selectedMonth);
-    return end;
+  function valid(entry) {
+    return entry && entry.id != null && /^\d{4}-\d{2}-\d{2}$/.test(entry.date) && Number(entry.amount) > 0;
   }
 
   function render() {
-    elements.monthPicker.value = selectedMonth;
-    renderMonthlySummary();
-    renderWeeklyFeedback();
+    el.monthPicker.value = selectedMonth;
+    renderSummary();
+    renderFeedback();
     renderRecords();
   }
+  function renderSummary() {
+    const list = monthEntries(), spent = sum(list), remaining = settings.monthlyBudget - spent;
+    const usage = settings.monthlyBudget ? spent / settings.monthlyBudget * 100 : 0;
+    const bounds = monthBounds(selectedMonth), today = new Date(), current = selectedMonth === monthValue(today);
+    const elapsed = current ? Math.max(1, today.getDate()) : bounds.days;
+    const daysLeft = current ? Math.max(1, bounds.days - today.getDate() + 1) : bounds.days;
 
-  function renderMonthlySummary() {
-    const monthEntries = getEntriesForMonth(selectedMonth);
-    const spent = sumEntries(monthEntries);
-    const remaining = settings.monthlyBudget - spent;
-    const usage = settings.monthlyBudget > 0 ? (spent / settings.monthlyBudget) * 100 : 0;
-    const bounds = getMonthBounds(selectedMonth);
-    const now = new Date();
-    const isCurrentMonth = selectedMonth === toMonthValue(now);
-    const elapsedDays = isCurrentMonth ? Math.max(1, now.getDate()) : bounds.days;
-    const remainingDays = isCurrentMonth ? Math.max(1, bounds.days - now.getDate() + 1) : bounds.days;
-
-    elements.monthSpent.textContent = formatWon(spent);
-    elements.monthlyBudget.textContent = formatWon(settings.monthlyBudget);
-    elements.monthRemaining.textContent = remaining >= 0 ? formatWon(remaining) : `${formatWon(Math.abs(remaining))} 초과`;
-    elements.dailyAverage.textContent = formatWon(spent / elapsedDays);
-    elements.dailyAllowance.textContent = formatWon(Math.max(0, remaining) / remainingDays);
-    elements.entryCount.textContent = `${monthEntries.length}건`;
-
-    const visualUsage = Math.min(100, Math.max(0, usage));
-    elements.monthProgress.style.width = `${visualUsage}%`;
-    elements.monthProgress.classList.toggle('warning', usage >= 85 && usage <= 100);
-    elements.monthProgress.classList.toggle('over', usage > 100);
-    elements.progressTrack.setAttribute('aria-valuenow', String(Math.round(Math.min(100, usage))));
-
-    if (usage > 100) {
-      elements.monthProgressCaption.textContent = `예산을 ${formatWon(spent - settings.monthlyBudget)} 초과했어요.`;
-    } else {
-      elements.monthProgressCaption.textContent = `예산의 ${Math.round(usage)}%를 사용했어요.`;
-    }
+    el.monthSpent.textContent = won(spent);
+    el.monthlyBudget.textContent = won(settings.monthlyBudget);
+    el.monthRemaining.textContent = remaining >= 0 ? won(remaining) : `${won(-remaining)} 초과`;
+    el.dailyAverage.textContent = won(spent / elapsed);
+    el.dailyAllowance.textContent = won(Math.max(0, remaining) / daysLeft);
+    el.entryCount.textContent = `${list.length}건`;
+    el.monthProgress.style.width = `${Math.min(100, Math.max(0, usage))}%`;
+    el.monthProgress.classList.toggle('warning', usage >= 85 && usage <= 100);
+    el.monthProgress.classList.toggle('over', usage > 100);
+    el.progressTrack.setAttribute('aria-valuenow', String(Math.round(Math.min(100, usage))));
+    el.monthProgressCaption.textContent = usage > 100 ? `예산을 ${won(spent - settings.monthlyBudget)} 초과했어요.` : `예산의 ${Math.round(usage)}%를 사용했어요.`;
   }
+  function renderFeedback() {
+    const bounds = monthBounds(selectedMonth), currentStart = weekStart(referenceDate()), lastStart = addDays(currentStart, -7);
+    const currentSpent = sum(between(currentStart, weekEnd(currentStart))), lastSpent = sum(between(lastStart, weekEnd(lastStart)));
+    const currentGuide = guide(currentStart, bounds), lastGuide = guide(lastStart, bounds), ratio = currentGuide ? currentSpent / currentGuide : 0;
 
-  function renderWeeklyFeedback() {
-    const bounds = getMonthBounds(selectedMonth);
-    const referenceDate = getReferenceDate();
-    const currentWeekStart = startOfWeek(referenceDate);
-    const lastWeekStart = addDays(currentWeekStart, -7);
-    const currentWeekEnd = endOfWeek(currentWeekStart);
-    const lastWeekEnd = endOfWeek(lastWeekStart);
+    el.thisWeekSpent.textContent = won(currentSpent); el.thisWeekGuide.textContent = `가이드 ${won(currentGuide)}`;
+    el.lastWeekSpent.textContent = won(lastSpent); el.lastWeekGuide.textContent = `가이드 ${won(lastGuide)}`;
+    el.weeklyStatus.className = 'status-chip';
 
-    const currentSpent = sumEntries(entriesBetween(currentWeekStart, currentWeekEnd).filter((entry) => entry.date.startsWith(selectedMonth)));
-    const lastSpent = sumEntries(entriesBetween(lastWeekStart, lastWeekEnd).filter((entry) => entry.date.startsWith(selectedMonth)));
-    const currentGuide = weekGuide(currentWeekStart, bounds);
-    const lastGuide = weekGuide(lastWeekStart, bounds);
-
-    elements.thisWeekSpent.textContent = formatWon(currentSpent);
-    elements.thisWeekGuide.textContent = `가이드 ${formatWon(currentGuide)}`;
-    elements.lastWeekSpent.textContent = formatWon(lastSpent);
-    elements.lastWeekGuide.textContent = `가이드 ${formatWon(lastGuide)}`;
-
-    const ratio = currentGuide > 0 ? currentSpent / currentGuide : 0;
-    elements.weeklyStatus.className = 'status-chip';
-
-    const monthEntries = getEntriesForMonth(selectedMonth);
-    if (monthEntries.length === 0) {
-      elements.weeklyStatus.textContent = '기록 대기';
-      elements.weeklyFeedbackMessage.textContent = '식비를 기록하면 지난주와 이번 주를 비교해 조절할 포인트를 알려드려요.';
+    if (!monthEntries().length) {
+      el.weeklyStatus.textContent = '기록 대기';
+      el.weeklyFeedbackMessage.textContent = '식비를 기록하면 지난주와 이번 주를 비교해 조절할 포인트를 알려드려요.';
     } else if (ratio > 1.1) {
-      elements.weeklyStatus.textContent = '조절 필요';
-      elements.weeklyStatus.classList.add('over');
-      const over = Math.max(0, currentSpent - currentGuide);
-      elements.weeklyFeedbackMessage.textContent = `이번 주 가이드보다 ${formatWon(over)} 많이 썼어요. 다음 식사부터 배달·간식 중 만족도가 낮았던 소비 하나만 줄여보세요.`;
+      el.weeklyStatus.textContent = '조절 필요'; el.weeklyStatus.classList.add('over');
+      el.weeklyFeedbackMessage.textContent = `이번 주 가이드보다 ${won(currentSpent - currentGuide)} 많이 썼어요. 다음 주에는 배달·외식이나 카페·간식 지출을 한 번만 줄여보세요.`;
     } else if (ratio >= 0.85) {
-      elements.weeklyStatus.textContent = '계획대로';
-      elements.weeklyStatus.classList.add('warning');
-      elements.weeklyFeedbackMessage.textContent = '이번 주는 계획 범위에 있어요. 남은 기간에도 지금 속도를 유지하면 됩니다.';
+      el.weeklyStatus.textContent = '계획대로'; el.weeklyStatus.classList.add('warning');
+      el.weeklyFeedbackMessage.textContent = '이번 주는 계획 범위에 있어요. 남은 기간에도 지금 속도를 유지하면 됩니다.';
     } else {
-      elements.weeklyStatus.textContent = '여유 있음';
-      elements.weeklyFeedbackMessage.textContent = buildLowSpendMessage(monthEntries, currentGuide - currentSpent);
+      el.weeklyStatus.textContent = '여유 있음';
+      el.weeklyFeedbackMessage.textContent = `이번 주는 가이드보다 ${won(Math.max(0, currentGuide - currentSpent))} 적게 쓰고 있어요. 무리해서 더 아끼기보다 지금 흐름을 유지하세요.`;
     }
-
     if (lastGuide > 0 && lastSpent > lastGuide && currentSpent <= currentGuide) {
-      elements.weeklyFeedbackMessage.textContent = `지난주 초과분을 이번 주에 잘 조절하고 있어요. 현재까지 가이드 안에서 ${formatWon(currentGuide - currentSpent)}의 여유가 있습니다.`;
+      el.weeklyFeedbackMessage.textContent = `지난주 초과분을 이번 주에 잘 조절하고 있어요. 현재까지 가이드 안에서 ${won(currentGuide - currentSpent)}의 여유가 있습니다.`;
     }
-
-    renderWeeklyBars(bounds);
+    renderBars(bounds);
   }
-
-  function buildLowSpendMessage(monthEntries, room) {
-    const lowSatisfaction = monthEntries
-      .filter((entry) => entry.satisfaction === '아쉬움')
-      .sort((a, b) => b.amount - a.amount)[0];
-
-    if (lowSatisfaction) {
-      return `이번 주는 ${formatWon(Math.max(0, room))} 정도 여유가 있어요. 다음에는 만족도가 아쉬웠던 ‘${lowSatisfaction.memo || lowSatisfaction.category}’ 같은 소비를 먼저 줄이면 됩니다.`;
-    }
-    return `이번 주는 가이드보다 ${formatWon(Math.max(0, room))} 적게 쓰고 있어요. 무리해서 더 아끼기보다 지금 흐름을 유지하세요.`;
-  }
-
-  function renderWeeklyBars(bounds) {
+  function renderBars(bounds) {
     const weeks = [];
-    let cursor = startOfWeek(bounds.start);
-    while (cursor <= bounds.end) {
-      const weekStart = new Date(cursor);
-      const weekEnd = endOfWeek(weekStart);
-      const spent = sumEntries(entriesBetween(weekStart, weekEnd).filter((entry) => entry.date.startsWith(selectedMonth)));
-      const guide = weekGuide(weekStart, bounds);
-      weeks.push({ weekStart, spent, guide });
-      cursor = addDays(cursor, 7);
+    for (let cursor = weekStart(bounds.start); cursor <= bounds.end; cursor = addDays(cursor, 7)) {
+      weeks.push({ spent: sum(between(cursor, weekEnd(cursor))), guide: guide(cursor, bounds) });
     }
-
-    const maxValue = Math.max(settings.monthlyBudget / 4, ...weeks.map((week) => Math.max(week.spent, week.guide)), 1);
-    elements.weeklyBars.innerHTML = '';
-
+    const maximum = Math.max(settings.monthlyBudget / 4, ...weeks.flatMap((week) => [week.spent, week.guide]), 1);
+    el.weeklyBars.innerHTML = '';
     weeks.forEach((week, index) => {
-      const column = document.createElement('div');
-      column.className = 'week-bar-column';
-      column.title = `${index + 1}주차: ${formatWon(week.spent)} / 가이드 ${formatWon(week.guide)}`;
-
-      const track = document.createElement('div');
-      track.className = 'week-bar-track';
-      const fill = document.createElement('div');
-      fill.className = 'week-bar-fill';
+      const column = document.createElement('div'), track = document.createElement('div'), fill = document.createElement('div'), label = document.createElement('span');
+      column.className = 'week-bar-column'; column.title = `${index + 1}주차: ${won(week.spent)} / 가이드 ${won(week.guide)}`;
+      track.className = 'week-bar-track'; fill.className = 'week-bar-fill'; label.className = 'week-bar-label';
       if (week.spent > week.guide * 1.1) fill.classList.add('over');
-      fill.style.height = `${Math.max(3, (week.spent / maxValue) * 100)}%`;
-      track.appendChild(fill);
-
-      const label = document.createElement('span');
-      label.className = 'week-bar-label';
-      label.textContent = `${index + 1}주`;
-      column.append(track, label);
-      elements.weeklyBars.appendChild(column);
+      fill.style.height = `${Math.max(3, week.spent / maximum * 100)}%`; label.textContent = `${index + 1}주`;
+      track.append(fill); column.append(track, label); el.weeklyBars.append(column);
     });
   }
-
   function renderRecords() {
-    const monthEntries = getEntriesForMonth(selectedMonth);
-    const filter = elements.categoryFilter.value;
-    const filtered = monthEntries
-      .filter((entry) => filter === '전체' || entry.category === filter)
+    const list = monthEntries(), filter = el.categoryFilter.value;
+    const visible = list.filter((entry) => filter === '전체' || entry.category === filter)
       .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
-
-    renderCategorySummary(monthEntries);
-    elements.recordList.innerHTML = '';
-    elements.emptyState.classList.toggle('hidden', filtered.length > 0);
-
-    filtered.forEach((entry) => {
-      const item = document.createElement('article');
-      item.className = 'record-item';
-
-      const icon = document.createElement('div');
-      icon.className = 'record-icon';
-      icon.textContent = CATEGORY_META[entry.category]?.icon || '➕';
-
-      const main = document.createElement('div');
-      main.className = 'record-main';
-      const title = document.createElement('strong');
-      title.textContent = entry.memo || entry.category;
-      const details = document.createElement('span');
-      const satisfaction = entry.satisfaction ? ` · ${entry.satisfaction}` : '';
-      details.textContent = `${formatDisplayDate(entry.date)} · ${entry.category}${satisfaction}`;
+    el.categorySummary.innerHTML = Object.keys(CATEGORIES).map((category) =>
+      `<span class="category-pill">${CATEGORIES[category]} ${category} <strong>${won(sum(list.filter((entry) => entry.category === category)))}</strong></span>`
+    ).join('');
+    el.recordList.innerHTML = ''; el.emptyState.classList.toggle('hidden', visible.length > 0);
+    visible.forEach((entry) => {
+      const item = document.createElement('article'); item.className = 'record-item';
+      const icon = document.createElement('div'); icon.className = 'record-icon'; icon.textContent = CATEGORIES[entry.category] || '➕';
+      const main = document.createElement('div'); main.className = 'record-main';
+      const title = document.createElement('strong'); title.textContent = entry.category;
+      const details = document.createElement('span'); details.textContent = new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' }).format(parseDate(entry.date));
       main.append(title, details);
-
-      const amount = document.createElement('div');
-      amount.className = 'record-amount';
-      const amountText = document.createElement('strong');
-      amountText.textContent = formatWon(entry.amount);
-      const actions = document.createElement('div');
-      actions.className = 'record-actions';
-      const editButton = document.createElement('button');
-      editButton.type = 'button';
-      editButton.textContent = '수정';
-      editButton.addEventListener('click', () => startEdit(entry.id));
-      const deleteButton = document.createElement('button');
-      deleteButton.type = 'button';
-      deleteButton.className = 'delete';
-      deleteButton.textContent = '삭제';
-      deleteButton.addEventListener('click', () => deleteEntry(entry.id));
-      actions.append(editButton, deleteButton);
-      amount.append(amountText, actions);
-
-      item.append(icon, main, amount);
-      elements.recordList.appendChild(item);
+      const amount = document.createElement('div'); amount.className = 'record-amount';
+      const amountText = document.createElement('strong'); amountText.textContent = won(entry.amount);
+      const actions = document.createElement('div'); actions.className = 'record-actions';
+      const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = '수정'; edit.onclick = () => startEdit(entry.id);
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'delete'; remove.textContent = '삭제'; remove.onclick = () => deleteEntry(entry.id);
+      actions.append(edit, remove); amount.append(amountText, actions); item.append(icon, main, amount); el.recordList.append(item);
     });
   }
 
-  function renderCategorySummary(monthEntries) {
-    elements.categorySummary.innerHTML = '';
-    Object.keys(CATEGORY_META).forEach((category) => {
-      const amount = sumEntries(monthEntries.filter((entry) => entry.category === category));
-      const pill = document.createElement('span');
-      pill.className = 'category-pill';
-      pill.innerHTML = `${CATEGORY_META[category].icon} ${category} <strong>${formatWon(amount)}</strong>`;
-      elements.categorySummary.appendChild(pill);
-    });
+  function radio(name, value) {
+    document.querySelectorAll(`input[name="${name}"]`).forEach((input) => { input.checked = input.value === value; });
   }
-
-  function formatDisplayDate(value) {
-    return new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' }).format(parseLocalDate(value));
+  function resetForm() {
+    el.expenseForm.reset(); el.editingId.value = ''; el.expenseDate.value = dateValue(new Date()); radio('category', '식사');
+    el.submitExpenseButton.textContent = '식비 기록하기'; el.cancelEditButton.classList.add('hidden');
   }
-
-  function createId() {
-    if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
-      return globalThis.crypto.randomUUID();
-    }
-    return `entry-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  }
-
   function submitExpense(event) {
     event.preventDefault();
-    const formData = new FormData(elements.expenseForm);
-    const amount = Number(formData.get('amount'));
-    if (!Number.isFinite(amount) || amount <= 0) {
-      showToast('금액을 확인해주세요.');
-      return;
-    }
-
-    const existingId = elements.editingId.value;
-    const entry = {
-      id: existingId || createId(),
-      date: String(formData.get('date')),
-      amount: Math.round(amount),
-      category: String(formData.get('category')),
-      satisfaction: String(formData.get('satisfaction') || ''),
-      memo: String(formData.get('memo') || '').trim(),
-      createdAt: existingId ? (entries.find((item) => item.id === existingId)?.createdAt || new Date().toISOString()) : new Date().toISOString()
-    };
-
-    if (existingId) {
-      entries = entries.map((item) => item.id === existingId ? entry : item);
-      showToast('기록을 수정했어요.');
-    } else {
-      entries.push(entry);
-      showToast('식비를 기록했어요.');
-    }
-
-    selectedMonth = entry.date.slice(0, 7);
-    saveState();
-    resetForm();
-    render();
+    const data = new FormData(el.expenseForm), amount = Number(data.get('amount'));
+    if (!Number.isFinite(amount) || amount <= 0) return toast('금액을 확인해주세요.');
+    const id = el.editingId.value, old = entries.find((entry) => entry.id === id);
+    const entry = normalize({ id: id || globalThis.crypto?.randomUUID?.() || `entry-${Date.now()}`, date: String(data.get('date')), amount, category: String(data.get('category')), createdAt: old?.createdAt });
+    entries = id ? entries.map((item) => item.id === id ? entry : item) : [...entries, entry];
+    selectedMonth = entry.date.slice(0, 7); save(); resetForm(); render(); toast(id ? '기록을 수정했어요.' : '식비를 기록했어요.');
   }
-
   function startEdit(id) {
-    const entry = entries.find((item) => item.id === id);
-    if (!entry) return;
-    elements.editingId.value = entry.id;
-    elements.expenseDate.value = entry.date;
-    elements.expenseAmount.value = entry.amount;
-    elements.expenseMemo.value = entry.memo;
-    setRadioValue('category', entry.category);
-    setRadioValue('satisfaction', entry.satisfaction);
-    elements.submitExpenseButton.textContent = '수정 내용 저장';
-    elements.cancelEditButton.classList.remove('hidden');
-    document.querySelector('.entry-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const entry = entries.find((item) => item.id === id); if (!entry) return;
+    el.editingId.value = entry.id; el.expenseDate.value = entry.date; el.expenseAmount.value = entry.amount; radio('category', entry.category);
+    el.submitExpenseButton.textContent = '수정 내용 저장'; el.cancelEditButton.classList.remove('hidden');
+    $('.entry-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
-
-  function setRadioValue(name, value) {
-    document.querySelectorAll(`input[name="${name}"]`).forEach((input) => {
-      input.checked = input.value === value;
-    });
-  }
-
-  function resetForm() {
-    elements.expenseForm.reset();
-    elements.editingId.value = '';
-    elements.expenseDate.value = toDateValue(new Date());
-    setRadioValue('category', '식사');
-    elements.submitExpenseButton.textContent = '식비 기록하기';
-    elements.cancelEditButton.classList.add('hidden');
-  }
-
   function deleteEntry(id) {
     const entry = entries.find((item) => item.id === id);
-    if (!entry) return;
-    if (!window.confirm(`${formatWon(entry.amount)} 기록을 삭제할까요?`)) return;
-    entries = entries.filter((item) => item.id !== id);
-    saveState();
-    render();
-    showToast('기록을 삭제했어요.');
+    if (!entry || !confirm(`${won(entry.amount)} 기록을 삭제할까요?`)) return;
+    entries = entries.filter((item) => item.id !== id); save(); render(); toast('기록을 삭제했어요.');
   }
-
-  function shiftMonth(offset) {
-    const [year, month] = selectedMonth.split('-').map(Number);
-    selectedMonth = toMonthValue(new Date(year, month - 1 + offset, 1));
-    render();
-  }
-
-  function openSettings() {
-    elements.budgetInput.value = settings.monthlyBudget;
-    if (typeof elements.settingsDialog.showModal === 'function') {
-      elements.settingsDialog.showModal();
-    } else {
-      elements.settingsDialog.setAttribute('open', '');
-    }
-  }
-
+  function openSettings() { el.budgetInput.value = settings.monthlyBudget; el.settingsDialog.showModal(); }
   function saveSettings(event) {
-    event.preventDefault();
-    const monthlyBudget = Number(elements.budgetInput.value);
-    if (!Number.isFinite(monthlyBudget) || monthlyBudget < 10000) {
-      showToast('월 예산을 1만 원 이상 입력해주세요.');
-      return;
-    }
-    settings.monthlyBudget = Math.round(monthlyBudget);
-    saveState();
-    elements.settingsDialog.close();
-    render();
-    showToast('월 예산을 저장했어요.');
+    event.preventDefault(); const budget = Number(el.budgetInput.value);
+    if (!Number.isFinite(budget) || budget < 10000) return toast('월 예산을 1만 원 이상 입력해주세요.');
+    settings.monthlyBudget = Math.round(budget); save(); el.settingsDialog.close(); render(); toast('월 예산을 저장했어요.');
   }
-
   function exportData() {
-    const payload = {
-      app: 'bobmoney',
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      settings,
-      entries
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `bobmoney-backup-${toDateValue(new Date())}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    showToast('백업 파일을 저장했어요.');
+    const blob = new Blob([JSON.stringify({ app: 'bobmoney', version: 2, exportedAt: new Date().toISOString(), settings, entries }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob), link = document.createElement('a'); link.href = url; link.download = `bobmoney-backup-${dateValue(new Date())}.json`; link.click(); URL.revokeObjectURL(url); toast('백업 파일을 저장했어요.');
   }
-
   async function importData(event) {
-    const [file] = event.target.files;
-    if (!file) return;
+    const file = event.target.files[0]; if (!file) return;
     try {
-      const payload = JSON.parse(await file.text());
-      if (!Array.isArray(payload.entries) || !payload.settings) throw new Error('invalid backup');
-      if (!window.confirm('현재 기록을 백업 파일의 내용으로 바꿀까요?')) return;
-      entries = payload.entries.filter(isValidEntry);
-      settings = { ...DEFAULT_SETTINGS, ...payload.settings };
-      saveState();
-      elements.settingsDialog.close();
-      render();
-      showToast('백업을 불러왔어요.');
-    } catch (error) {
-      console.error(error);
-      showToast('올바른 백업 파일이 아니에요.');
-    } finally {
-      event.target.value = '';
-    }
+      const data = JSON.parse(await file.text());
+      if (!Array.isArray(data.entries) || !data.settings || !confirm('현재 기록을 백업 파일의 내용으로 바꿀까요?')) return;
+      entries = data.entries.filter(valid).map(normalize); settings = { monthlyBudget: 600000, ...data.settings }; save(); el.settingsDialog.close(); render(); toast('백업을 불러왔어요.');
+    } catch { toast('올바른 백업 파일이 아니에요.'); }
+    finally { event.target.value = ''; }
+  }
+  function toast(message) {
+    clearTimeout(toastTimer); el.toast.textContent = message; el.toast.classList.add('show');
+    toastTimer = setTimeout(() => el.toast.classList.remove('show'), 2200);
   }
 
-  function isValidEntry(entry) {
-    return entry && typeof entry.id === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(entry.date) && Number(entry.amount) > 0;
-  }
+  el.expenseForm.addEventListener('submit', submitExpense); el.cancelEditButton.onclick = resetForm;
+  el.previousMonthButton.onclick = () => { const [y, m] = selectedMonth.split('-').map(Number); selectedMonth = monthValue(new Date(y, m - 2, 1)); render(); };
+  el.nextMonthButton.onclick = () => { const [y, m] = selectedMonth.split('-').map(Number); selectedMonth = monthValue(new Date(y, m, 1)); render(); };
+  el.monthPicker.onchange = (event) => { if (event.target.value) { selectedMonth = event.target.value; render(); } };
+  el.categoryFilter.onchange = renderRecords; el.openSettingsButton.onclick = openSettings; el.editBudgetButton.onclick = openSettings;
+  el.closeSettingsButton.onclick = () => el.settingsDialog.close(); el.settingsForm.addEventListener('submit', saveSettings);
+  el.exportButton.onclick = exportData; el.importInput.onchange = importData;
+  el.clearDataButton.onclick = () => { if (confirm('모든 식비 기록을 삭제할까요? 이 작업은 되돌릴 수 없습니다.')) { entries = []; save(); resetForm(); render(); el.settingsDialog.close(); toast('모든 기록을 삭제했어요.'); } };
 
-  function clearData() {
-    if (!window.confirm('모든 식비 기록을 삭제할까요? 이 작업은 되돌릴 수 없습니다.')) return;
-    entries = [];
-    saveState();
-    resetForm();
-    render();
-    elements.settingsDialog.close();
-    showToast('모든 기록을 삭제했어요.');
-  }
-
-  function showToast(message) {
-    clearTimeout(toastTimer);
-    elements.toast.textContent = message;
-    elements.toast.classList.add('show');
-    toastTimer = setTimeout(() => elements.toast.classList.remove('show'), 2200);
-  }
-
-  function bindEvents() {
-    elements.expenseForm.addEventListener('submit', submitExpense);
-    elements.cancelEditButton.addEventListener('click', resetForm);
-    elements.previousMonthButton.addEventListener('click', () => shiftMonth(-1));
-    elements.nextMonthButton.addEventListener('click', () => shiftMonth(1));
-    elements.monthPicker.addEventListener('change', (event) => {
-      if (event.target.value) {
-        selectedMonth = event.target.value;
-        render();
-      }
-    });
-    elements.categoryFilter.addEventListener('change', renderRecords);
-    elements.openSettingsButton.addEventListener('click', openSettings);
-    elements.closeSettingsButton.addEventListener('click', () => elements.settingsDialog.close());
-    elements.editBudgetButton.addEventListener('click', openSettings);
-    elements.settingsForm.addEventListener('submit', saveSettings);
-    elements.exportButton.addEventListener('click', exportData);
-    elements.importInput.addEventListener('change', importData);
-    elements.clearDataButton.addEventListener('click', clearData);
-  }
-
-  function init() {
-    entries = Array.isArray(entries) ? entries.filter(isValidEntry) : [];
-    elements.expenseDate.value = toDateValue(new Date());
-    elements.budgetInput.value = settings.monthlyBudget;
-    bindEvents();
-    render();
-  }
-
-  init();
+  entries = Array.isArray(entries) ? entries.filter(valid).map(normalize) : [];
+  save(); resetForm(); el.budgetInput.value = settings.monthlyBudget; render();
 })();
