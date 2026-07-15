@@ -20,6 +20,45 @@
     </header>
 
     <main>
+      <section class="entry-card" aria-labelledby="entryFormTitle">
+        <div class="section-title-row">
+          <div>
+            <p class="section-kicker">빠른 기록</p>
+            <h2 id="entryFormTitle">오늘 먹은 비용</h2>
+          </div>
+          <button class="text-button hidden" id="cancelEditButton" type="button">수정 취소</button>
+        </div>
+
+        <form id="expenseForm">
+          <input id="editingId" type="hidden">
+          <div class="form-grid two-columns">
+            <label>
+              <span>날짜</span>
+              <input id="expenseDate" name="date" type="date" required>
+            </label>
+            <label>
+              <span>금액</span>
+              <div class="money-input">
+                <input id="expenseAmount" name="amount" type="number" min="100" step="100" inputmode="numeric" placeholder="예: 8500" required>
+                <span>원</span>
+              </div>
+            </label>
+          </div>
+
+          <fieldset>
+            <legend>종류</legend>
+            <div class="choice-grid category-grid">
+              <label><input type="radio" name="category" value="식사" checked><span>🍚 식사</span></label>
+              <label><input type="radio" name="category" value="배달·외식"><span>🥡 배달·외식</span></label>
+              <label><input type="radio" name="category" value="카페·간식"><span>☕ 카페·간식</span></label>
+              <label><input type="radio" name="category" value="기타"><span>➕ 기타</span></label>
+            </div>
+          </fieldset>
+
+          <button class="primary-button" id="submitExpenseButton" type="submit">식비 기록하기</button>
+        </form>
+      </section>
+
       <section class="month-toolbar" aria-label="조회 월 선택">
         <button class="month-nav" id="previousMonthButton" type="button" aria-label="이전 달">‹</button>
         <label class="month-label">
@@ -86,59 +125,6 @@
         </div>
         <p class="feedback-message" id="weeklyFeedbackMessage">식비를 기록하면 다음 주에 조절할 포인트를 알려드려요.</p>
         <div class="weekly-bars" id="weeklyBars" aria-label="주차별 식비 그래프"></div>
-      </section>
-
-      <section class="entry-card" aria-labelledby="entryFormTitle">
-        <div class="section-title-row">
-          <div>
-            <p class="section-kicker">빠른 기록</p>
-            <h2 id="entryFormTitle">오늘 먹은 비용</h2>
-          </div>
-          <button class="text-button hidden" id="cancelEditButton" type="button">수정 취소</button>
-        </div>
-
-        <form id="expenseForm">
-          <input id="editingId" type="hidden">
-          <div class="form-grid two-columns">
-            <label>
-              <span>날짜</span>
-              <input id="expenseDate" name="date" type="date" required>
-            </label>
-            <label>
-              <span>금액</span>
-              <div class="money-input">
-                <input id="expenseAmount" name="amount" type="number" min="100" step="100" inputmode="numeric" placeholder="예: 8500" required>
-                <span>원</span>
-              </div>
-            </label>
-          </div>
-
-          <fieldset>
-            <legend>종류</legend>
-            <div class="choice-grid category-grid">
-              <label><input type="radio" name="category" value="식사" checked><span>🍚 식사</span></label>
-              <label><input type="radio" name="category" value="배달·외식"><span>🥡 배달·외식</span></label>
-              <label><input type="radio" name="category" value="카페·간식"><span>☕ 카페·간식</span></label>
-              <label><input type="radio" name="category" value="기타"><span>➕ 기타</span></label>
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>만족도 <small>선택</small></legend>
-            <div class="choice-grid satisfaction-grid">
-              <label><input type="radio" name="satisfaction" value="좋았음"><span>좋았음</span></label>
-              <label><input type="radio" name="satisfaction" value="보통"><span>보통</span></label>
-              <label><input type="radio" name="satisfaction" value="아쉬움"><span>아쉬움</span></label>
-            </div>
-          </fieldset>
-
-          <label>
-            <span>메모 <small>선택</small></span>
-            <input id="expenseMemo" name="memo" type="text" maxlength="60" placeholder="예: 점심 학식, 습관적으로 산 커피">
-          </label>
-
-          <button class="primary-button" id="submitExpenseButton" type="submit">식비 기록하기</button>
-        </form>
       </section>
 
       <section class="records-card" aria-labelledby="recordsTitle">
