@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f4ec">
+  <meta name="description" content="식비만 간단히 기록하고 매주 소비 피드백을 받는 개인용 가계부">
+  <title>밥머니 · 식비 기록</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">FOOD BUDGET TRACKER</p>
+        <h1>밥머니</h1>
+        <p class="subtitle">식비만 기록하고, 일주일에 한 번 조절하기</p>
+      </div>
+      <button class="icon-button" id="openSettingsButton" type="button" aria-label="예산 및 데이터 설정">⚙</button>
+    </header>
+
+    <main>
+      <section class="month-toolbar" aria-label="조회 월 선택">
+        <button class="month-nav" id="previousMonthButton" type="button" aria-label="이전 달">‹</button>
+        <label class="month-label">
+          <span class="sr-only">조회 월</span>
+          <input id="monthPicker" type="month">
+        </label>
+        <button class="month-nav" id="nextMonthButton" type="button" aria-label="다음 달">›</button>
+      </section>
+
+      <section class="summary-card" aria-labelledby="monthlySummaryTitle">
+        <div class="summary-heading">
+          <div>
+            <p class="section-kicker">이번 달 식비</p>
+            <h2 id="monthlySummaryTitle"><span id="monthSpent">0원</span></h2>
+          </div>
+          <button class="text-button" id="editBudgetButton" type="button">예산 수정</button>
+        </div>
+
+        <div class="budget-row">
+          <span>월 예산 <strong id="monthlyBudget">600,000원</strong></span>
+          <span>남음 <strong id="monthRemaining">600,000원</strong></span>
+        </div>
+        <div class="progress-track" role="progressbar" aria-label="월 식비 예산 사용률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="progress-fill" id="monthProgress"></div>
+        </div>
+        <p class="progress-caption" id="monthProgressCaption">예산의 0%를 사용했어요.</p>
+
+        <div class="mini-stats">
+          <article>
+            <span>하루 평균</span>
+            <strong id="dailyAverage">0원</strong>
+          </article>
+          <article>
+            <span>남은 하루 한도</span>
+            <strong id="dailyAllowance">0원</strong>
+          </article>
+          <article>
+            <span>기록 횟수</span>
+            <strong id="entryCount">0건</strong>
+          </article>
+        </div>
+      </section>
+
+      <section class="feedback-card" aria-labelledby="feedbackTitle">
+        <div class="section-title-row">
+          <div>
+            <p class="section-kicker">주간 피드백</p>
+            <h2 id="feedbackTitle">이번 주 소비 흐름</h2>
+          </div>
+          <span class="status-chip" id="weeklyStatus">기록 대기</span>
+        </div>
+
+        <div class="week-comparison">
+          <article>
+            <span>지난주</span>
+            <strong id="lastWeekSpent">0원</strong>
+            <small id="lastWeekGuide">가이드 0원</small>
+          </article>
+          <article>
+            <span>이번 주</span>
+            <strong id="thisWeekSpent">0원</strong>
+            <small id="thisWeekGuide">가이드 0원</small>
+          </article>
+        </div>
+        <p class="feedback-message" id="weeklyFeedbackMessage">식비를 기록하면 다음 주에 조절할 포인트를 알려드려요.</p>
+        <div class="weekly-bars" id="weeklyBars" aria-label="주차별 식비 그래프"></div>
+      </section>
+
+      <section class="entry-card" aria-labelledby="entryFormTitle">
+        <div class="section-title-row">
+          <div>
+            <p class="section-kicker">빠른 기록</p>
+            <h2 id="entryFormTitle">오늘 먹은 비용</h2>
+          </div>
+          <button class="text-button hidden" id="cancelEditButton" type="button">수정 취소</button>
+        </div>
+
+        <form id="expenseForm">
+          <input id="editingId" type="hidden">
+          <div class="form-grid two-columns">
+            <label>
+              <span>날짜</span>
+              <input id="expenseDate" name="date" type="date" required>
+            </label>
+            <label>
+              <span>금액</span>
+              <div class="money-input">
+                <input id="expenseAmount" name="amount" type="number" min="1" step="100" inputmode="numeric" placeholder="예: 8500" required>
+                <span>원</span>
+              </div>
+            </label>
+          </div>
+
+          <fieldset>
+            <legend>종류</legend>
+            <div class="choice-grid category-grid">
+              <label><input type="radio" name="category" value="식사" checked><span>🍚 식사</span></label>
+              <label><input type="radio" name="category" value="배달·외식"><span>🥡 배달·외식</span></label>
+              <label><input type="radio" name="category" value="카페·간식"><span>☕ 카페·간식</span></label>
+              <label><input type="radio" name="category" value="기타"><span>➕ 기타</span></label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>만족도 <small>선택</small></legend>
+            <div class="choice-grid satisfaction-grid">
+              <label><input type="radio" name="satisfaction" value="좋았음"><span>좋았음</span></label>
+              <label><input type="radio" name="satisfaction" value="보통"><span>보통</span></label>
+              <label><input type="radio" name="satisfaction" value="아쉬움"><span>아쉬움</span></label>
+            </div>
+          </fieldset>
+
+          <label>
+            <span>메모 <small>선택</small></span>
+            <input id="expenseMemo" name="memo" type="text" maxlength="60" placeholder="예: 점심 학식, 습관적으로 산 커피">
+          </label>
+
+          <button class="primary-button" id="submitExpenseButton" type="submit">식비 기록하기</button>
+        </form>
+      </section>
+
+      <section class="records-card" aria-labelledby="recordsTitle">
+        <div class="section-title-row records-heading">
+          <div>
+            <p class="section-kicker">기록 내역</p>
+            <h2 id="recordsTitle">이번 달 식비</h2>
+          </div>
+          <select id="categoryFilter" aria-label="카테고리 필터">
+            <option value="전체">전체</option>
+            <option value="식사">식사</option>
+            <option value="배달·외식">배달·외식</option>
+            <option value="카페·간식">카페·간식</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="category-summary" id="categorySummary"></div>
+        <div class="record-list" id="recordList"></div>
+        <div class="empty-state" id="emptyState">
+          <span>🍽️</span>
+          <strong>아직 기록이 없어요.</strong>
+          <p>첫 식비를 입력하면 월간·주간 피드백이 시작됩니다.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>데이터는 현재 브라우저에만 저장됩니다.</p>
+    </footer>
+  </div>
+
+  <dialog id="settingsDialog">
+    <form method="dialog" class="dialog-card" id="settingsForm">
+      <div class="dialog-heading">
+        <div>
+          <p class="section-kicker">설정</p>
+          <h2>예산과 데이터</h2>
+        </div>
+        <button class="icon-button" id="closeSettingsButton" aria-label="닫기" type="button">×</button>
+      </div>
+
+      <label>
+        <span>월 식비 예산</span>
+        <div class="money-input">
+          <input id="budgetInput" type="number" min="10000" step="10000" required>
+          <span>원</span>
+        </div>
+      </label>
+
+      <div class="dialog-actions">
+        <button class="secondary-button" id="exportButton" type="button">백업 파일 저장</button>
+        <label class="secondary-button file-button">
+          백업 불러오기
+          <input id="importInput" type="file" accept="application/json">
+        </label>
+      </div>
+
+      <p class="dialog-note">브라우저 데이터 삭제나 기기 변경에 대비해 가끔 백업해두세요.</p>
+      <button class="primary-button" id="saveSettingsButton" value="default" type="submit">설정 저장</button>
+      <button class="danger-button" id="clearDataButton" type="button">모든 기록 삭제</button>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js" defer></script>
+</body>
+</html>
