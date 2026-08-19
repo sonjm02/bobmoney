@@ -32,10 +32,13 @@
         <form id="expenseForm">
           <input id="editingId" type="hidden">
           <div class="form-grid two-columns">
-            <label>
-              <span>날짜</span>
+            <div class="date-field">
+              <div class="field-label-row">
+                <label for="expenseDate">날짜</label>
+                <button class="date-today-button" id="todayDateButton" type="button">오늘</button>
+              </div>
               <input id="expenseDate" name="date" type="date" required>
-            </label>
+            </div>
             <label>
               <span>금액</span>
               <div class="money-input">
