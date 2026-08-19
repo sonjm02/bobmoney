@@ -146,6 +146,10 @@ input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px r
 .money-input { position: relative; }
 .money-input input { padding-right: 40px; }
 .money-input span { position: absolute; right: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+.field-label-row { display: flex; align-items: center; justify-content: space-between; min-height: 24px; margin-bottom: 7px; }
+.field-label-row label { color: var(--muted); font-size: 0.82rem; font-weight: 700; }
+.date-today-button { border: 0; border-radius: 999px; background: var(--accent-soft); color: var(--accent-strong); padding: 3px 9px; font-size: 0.74rem; font-weight: 800; }
+.date-today-button:hover { background: #cfe3d4; }
 fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .choice-grid { display: grid; gap: 8px; }
 .category-grid { grid-template-columns: repeat(4, 1fr); }
