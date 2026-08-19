@@ -18,11 +18,11 @@
     lastWeekSpent: $('#lastWeekSpent'), lastWeekGuide: $('#lastWeekGuide'), thisWeekSpent: $('#thisWeekSpent'),
     thisWeekGuide: $('#thisWeekGuide'), weeklyStatus: $('#weeklyStatus'), weeklyFeedbackMessage: $('#weeklyFeedbackMessage'),
     weeklyBars: $('#weeklyBars'), expenseForm: $('#expenseForm'), editingId: $('#editingId'), expenseDate: $('#expenseDate'),
-    expenseAmount: $('#expenseAmount'), submitExpenseButton: $('#submitExpenseButton'), cancelEditButton: $('#cancelEditButton'),
-    categoryFilter: $('#categoryFilter'), categorySummary: $('#categorySummary'), recordList: $('#recordList'), emptyState: $('#emptyState'),
-    settingsDialog: $('#settingsDialog'), settingsForm: $('#settingsForm'), openSettingsButton: $('#openSettingsButton'),
-    closeSettingsButton: $('#closeSettingsButton'), editBudgetButton: $('#editBudgetButton'), budgetInput: $('#budgetInput'),
-    exportButton: $('#exportButton'), importInput: $('#importInput'), clearDataButton: $('#clearDataButton'), toast: $('#toast')
+    expenseAmount: $('#expenseAmount'), todayDateButton: $('#todayDateButton'), submitExpenseButton: $('#submitExpenseButton'),
+    cancelEditButton: $('#cancelEditButton'), categoryFilter: $('#categoryFilter'), categorySummary: $('#categorySummary'),
+    recordList: $('#recordList'), emptyState: $('#emptyState'), settingsDialog: $('#settingsDialog'), settingsForm: $('#settingsForm'),
+    openSettingsButton: $('#openSettingsButton'), closeSettingsButton: $('#closeSettingsButton'), editBudgetButton: $('#editBudgetButton'),
+    budgetInput: $('#budgetInput'), exportButton: $('#exportButton'), importInput: $('#importInput'), clearDataButton: $('#clearDataButton'), toast: $('#toast')
   };
 
   const load = (key, fallback) => {
@@ -185,8 +185,8 @@
   function radio(name, value) {
     document.querySelectorAll(`input[name="${name}"]`).forEach((input) => { input.checked = input.value === value; });
   }
-  function resetForm() {
-    el.expenseForm.reset(); el.editingId.value = ''; el.expenseDate.value = dateValue(new Date()); radio('category', '식사');
+  function resetForm(date = dateValue(new Date())) {
+    el.expenseForm.reset(); el.editingId.value = ''; el.expenseDate.value = date; radio('category', '식사');
     el.submitExpenseButton.textContent = '식비 기록하기'; el.cancelEditButton.classList.add('hidden');
   }
   function submitExpense(event) {
@@ -196,7 +196,7 @@
     const id = el.editingId.value, old = entries.find((entry) => entry.id === id);
     const entry = normalize({ id: id || globalThis.crypto?.randomUUID?.() || `entry-${Date.now()}`, date: String(data.get('date')), amount, category: String(data.get('category')), createdAt: old?.createdAt });
     entries = id ? entries.map((item) => item.id === id ? entry : item) : [...entries, entry];
-    selectedMonth = entry.date.slice(0, 7); save(); resetForm(); render(); toast(id ? '기록을 수정했어요.' : '식비를 기록했어요.');
+    selectedMonth = entry.date.slice(0, 7); save(); resetForm(entry.date); render(); toast(id ? '기록을 수정했어요.' : '식비를 기록했어요.');
   }
   function startEdit(id) {
     const entry = entries.find((item) => item.id === id); if (!entry) return;
@@ -234,6 +234,7 @@
   }
 
   el.expenseForm.addEventListener('submit', submitExpense); el.cancelEditButton.onclick = resetForm;
+  el.todayDateButton.onclick = () => { el.expenseDate.value = dateValue(new Date()); };
   el.previousMonthButton.onclick = () => { const [y, m] = selectedMonth.split('-').map(Number); selectedMonth = monthValue(new Date(y, m - 2, 1)); render(); };
   el.nextMonthButton.onclick = () => { const [y, m] = selectedMonth.split('-').map(Number); selectedMonth = monthValue(new Date(y, m, 1)); render(); };
   el.monthPicker.onchange = (event) => { if (event.target.value) { selectedMonth = event.target.value; render(); } };
